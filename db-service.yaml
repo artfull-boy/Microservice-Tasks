@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+spec:
+  template:
+    spec:
+      containers:
+      - name: db-init
+        image: mysql:5.7
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "rootpassword"
+        command: ["sh", "-c"]
+        args:
+        - |
+          until mysql -h mysql -u root -p$MYSQL_ROOT_PASSWORD -e "SELECT 1"; do
+            echo "Waiting for MySQL to be ready...";
+            sleep 10;
+          done
+          
+          mysql -h mysql -u root -p$MYSQL_ROOT_PASSWORD -e "
+          CREATE DATABASE IF NOT EXISTS auth_db;
+          CREATE DATABASE IF NOT EXISTS task_db;
+          CREATE DATABASE IF NOT EXISTS project_db;
+          
+          CREATE USER IF NOT EXISTS 'auth_user'@'%' IDENTIFIED BY 'auth_password';
+          CREATE USER IF NOT EXISTS 'task_user'@'%' IDENTIFIED BY 'task_password';
+          CREATE USER IF NOT EXISTS 'project_user'@'%' IDENTIFIED BY 'project_password';
+          
+          GRANT ALL PRIVILEGES ON auth_db.* TO 'auth_user'@'%';
+          GRANT ALL PRIVILEGES ON task_db.* TO 'task_user'@'%';
+          GRANT ALL PRIVILEGES ON project_db.* TO 'project_user'@'%';
+          
+          FLUSH PRIVILEGES;
+          "
+      restartPolicy: Never
+  backoffLimit: 4
